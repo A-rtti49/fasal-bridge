@@ -1,4 +1,4 @@
-import mysql.connector 
+ import mysql.connector 
 def get_connection():
     return mysql.connector.connect(
         host="local host"
@@ -59,7 +59,6 @@ def Buyer():
              login()
          else:
              print("Thank for your precious time")
-
 
 
 
