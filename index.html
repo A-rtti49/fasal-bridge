@@ -1,13 +1,233 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>fasalbridge</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+
+<head>
+
+    <!-- Basic page settings -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Page information -->
+    <meta
+        name="description"
+        content="FasalBridge connects consumers with nearby farmers."
+    >
+
+    <title>FasalBridge | Fresh From Farmers</title>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+
+    <!-- HEADER -->
+
+    <header class="topbar">
+
+
+        <!-- FasalBridge Logo -->
+
+        <button class="brand" onclick="show('home')">
+
+            <img src="logo.png" alt="FasalBridge logo">
+
+            <span>FasalBridge</span>
+
+        </button>
+
+
+        <!-- Home Button -->
+
+        <button class="header-link" onclick="show('home')">
+            Home
+        </button>
+
+
+        <!-- Delivery Location -->
+
+        <button class="header-location" onclick="useMyLocation()">
+
+            <span class="location-icon">📍</span>
+
+            <span class="location-text">
+
+                <small>Deliver to</small>
+
+                <strong id="headerLocation">
+                    Set location
+                </strong>
+
+            </span>
+
+        </button>
+
+
+        <!-- Search Bar -->
+
+        <form class="header-search" onsubmit="headerSearch(event)">
+
+            <select id="headerCategory">
+
+                <option value="All">
+                    All
+                </option>
+
+                <option value="Vegetables">
+                    Vegetables
+                </option>
+
+                <option value="Fruits">
+                    Fruits
+                </option>
+
+                <option value="Crops">
+                    Crops
+                </option>
+
+            </select>
+
+
+            <!-- Search Input -->
+
+            <input
+                type="search"
+                id="headerSearchInput"
+                placeholder="Search fruits, vegetables, crops..."
+                autocomplete="off"
+            >
+
+
+            <!-- Voice Search -->
+
+            <button
+                type="button"
+                class="voice-button"
+                onclick="headerVoiceSearch()"
+                title="Voice search"
+            >
+                🎙
+            </button>
+
+
+            <!-- Search Button -->
+
+            <button
+                type="submit"
+                class="search-button"
+                title="Search"
+            >
+                🔍
+            </button>
+
+        </form>
+
+
+        <!-- Right Side Navigation -->
+
+        <nav class="header-actions">
+
+
+            <!-- Orders -->
+
+            <button
+                class="header-link"
+                onclick="show('orders')"
+            >
+                Orders
+            </button>
+
+
+            <!-- Profile -->
+
+            <button
+                class="header-link"
+                onclick="show('profile')"
+            >
+                Profile
+            </button>
+
+
+            <!-- Cart -->
+
+            <button
+                class="cart-button"
+                onclick="show('cart')"
+            >
+
+                🛒
+
+                <span>Cart</span>
+
+                <b id="count">0</b>
+
+            </button>
+
+        </nav>
+
+    </header>
+
+
+
+    <!-- MAIN CONTENT  -->
+
+    <main id="main" tabindex="-1"></main>
+
+
+    <nav class="bottom-nav">
+
+
+        <!-- Home -->
+
+        <button onclick="show('home')">
+
+            <span>⌂</span>
+
+            Home
+
+        </button>
+
+
+        <!-- Categories -->
+
+        <button onclick="show('categories')">
+
+            <span>☷</span>
+
+            Categories
+
+        </button>
+
+
+        <!-- Orders -->
+
+        <button onclick="show('orders')">
+
+            <span>▣</span>
+
+            Orders
+
+        </button>
+
+
+        <!-- Profile -->
+
+        <button onclick="show('profile')">
+
+            <span>○</span>
+
+            Profile
+
+        </button>
+
+    </nav>
+
+    <!--JAVASCRIPT LINK-->
+
+    <script src="script.js"></script>
+
+</body>
+
 </html>
