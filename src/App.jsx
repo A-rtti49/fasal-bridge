@@ -1,31 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./App.css";
 import logo from "./assets/logo.png";
 
-const languages = ["English", "हिंदी", "ਪੰਜਾਬੀ", "मराठी", "বাংলা"];
+const API_URL = "http://localhost:5000";
 
-const demoOrders = [
-  {
-    id: "ORD-1023",
-    product: "Fresh Tomatoes",
-    emoji: "🍅",
-    amount: "10 kg · ₹300",
-    customer: "Aditi Sharma",
-    location: "Delhi, India",
-    date: "12 Sep",
-    status: "Pending",
-  },
-  {
-    id: "ORD-1022",
-    product: "Potatoes",
-    emoji: "🥔",
-    amount: "20 kg · ₹600",
-    customer: "Rohit Mehta",
-    location: "Gurugram, India",
-    date: "11 Sep",
-    status: "Completed",
-  },
-];
+const languages = ["English", "हिंदी", "ਪੰਜਾਬੀ", "मराठी", "বাংলা"];
 
 function Logo({ compact = false }) {
   return (
@@ -115,6 +94,20 @@ function App() {
   const [faqOpen, setFaqOpen] = useState(null);
 
   const [productImage, setProductImage] = useState(null);
+  const [productFile, setProductFile] = useState(null);
+
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("fasalbridgeUser")) || null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadingOrders, setLoadingOrders] = useState(false);
 
   const [product, setProduct] = useState({
     name: "",
@@ -126,7 +119,7 @@ function App() {
     quantityUnit: "kg",
   });
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!location.trim()) {
       alert("Please enter your location.");
       return;
@@ -141,28 +134,201 @@ function App() {
       return;
     }
 
-    setPage("role");
+    try {
+      const body = {
+        name: "FasalBridge User",
+        location: location.trim(),
+        language,
+        role: "",
+      };
+
+      if (loginType === "phone") {
+        body.phone = loginValue.trim();
+      } else {
+        body.email = loginValue.trim();
+      }
+
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Login failed.");
+      }
+
+      setCurrentUser(data.user);
+      localStorage.setItem("fasalbridgeUser", JSON.stringify(data.user));
+      setPage("role");
+    } catch (error) {
+      console.error(error);
+      alert(
+        "Could not connect to FasalBridge backend. Make sure the backend is running on port 5000."
+      );
+    }
   };
 
-  const handleProductSubmit = (e) => {
+  const chooseRole = async (role, nextPage) => {
+    if (!currentUser?.id) {
+      alert("Please login first.");
+      setPage("login");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/users/${currentUser.id}/role`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ role }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not save role.");
+      }
+
+      setCurrentUser(data.user);
+      localStorage.setItem("fasalbridgeUser", JSON.stringify(data.user));
+      setPage(nextPage);
+    } catch (error) {
+      console.error(error);
+      alert("Could not save your role. Please make sure the backend is running.");
+    }
+  };
+
+  const loadProducts = async () => {
+    setLoadingProducts(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/products`);
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not load products.");
+      }
+
+      setProducts(data.products || []);
+    } catch (error) {
+      console.error(error);
+      alert("Could not load products from the backend.");
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  const loadOrders = async () => {
+    if (!currentUser?.id) return;
+
+    setLoadingOrders(true);
+
+    try {
+      const response = await fetch(
+        `${API_URL}/api/orders?sellerId=${encodeURIComponent(currentUser.id)}`
+      );
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not load orders.");
+      }
+
+      setOrders(data.orders || []);
+    } catch (error) {
+      console.error(error);
+      alert("Could not load orders from the backend.");
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  useEffect(() => {
+    if (page === "home" || page === "sell") {
+      loadProducts();
+    }
+
+    if (page === "orders") {
+      loadOrders();
+    }
+  }, [page, currentUser?.id]);
+
+  const handleProductSubmit = async (e) => {
     e.preventDefault();
 
-    if (
-      !product.name ||
-      !product.category ||
-      !product.price ||
-      !product.quantity
-    ) {
+    if (!product.name || !product.category || !product.price || !product.quantity) {
       alert("Please fill all required fields.");
       return;
     }
 
-    alert("Product listed successfully!");
-    setPage("home");
+    if (!currentUser?.id) {
+      alert("Please login before listing a product.");
+      setPage("login");
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+
+      formData.append("sellerId", currentUser.id);
+      formData.append("name", product.name);
+      formData.append("category", product.category);
+      formData.append("price", product.price);
+      formData.append("quantity", product.quantity);
+      formData.append("location", location || currentUser.location || "");
+      formData.append("description", product.description);
+      formData.append("priceUnit", product.priceUnit);
+      formData.append("quantityUnit", product.quantityUnit);
+
+      if (productFile) {
+        formData.append("image", productFile);
+      }
+
+      const response = await fetch(`${API_URL}/api/products`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Could not list product.");
+      }
+
+      alert("Product listed successfully!");
+
+      setProduct({
+        name: "",
+        category: "",
+        price: "",
+        quantity: "",
+        description: "",
+        priceUnit: "per kg",
+        quantityUnit: "kg",
+      });
+      setProductFile(null);
+      setProductImage(null);
+
+      await loadProducts();
+      setPage("home");
+    } catch (error) {
+      console.error(error);
+      alert("Could not list the product. Make sure the backend is running on port 5000.");
+    }
   };
 
   const logout = () => {
     setLoginValue("");
+    setCurrentUser(null);
+    localStorage.removeItem("fasalbridgeUser");
     setPage("language");
   };
 
@@ -339,7 +505,7 @@ function App() {
               <div className="role-grid">
                 <button
                   className="role-card"
-                  onClick={() => setPage("buyer")}
+                  onClick={() => chooseRole("buyer", "buyer")}
                 >
                   <div className="role-icon">🛒</div>
                   <h2>Buy Produce</h2>
@@ -350,7 +516,7 @@ function App() {
 
                 <button
                   className="role-card seller-role"
-                  onClick={() => setPage("home")}
+                  onClick={() => chooseRole("seller", "home")}
                 >
                   <div className="role-icon">🌾</div>
                   <h2>Sell Produce</h2>
@@ -520,19 +686,46 @@ function App() {
                 </button>
               </div>
 
-              <div className="listing-card">
-                <div className="listing-image">🍅</div>
-
-                <div className="listing-info">
-                  <strong>Fresh Tomatoes</strong>
-                  <p>₹30/kg</p>
-                  <small>50 kg available</small>
+              {loadingProducts ? (
+                <div className="listing-card">
+                  <div className="listing-info">
+                    <strong>Loading your listings...</strong>
+                  </div>
                 </div>
+              ) : products.filter((item) => !currentUser?.id || item.sellerId === currentUser.id).length > 0 ? (
+                products.filter((item) => !currentUser?.id || item.sellerId === currentUser.id).slice(0, 3).map((item) => (
+                  <div className="listing-card" key={item.id}>
+                    <div className="listing-image">
+                      {item.image ? (
+                        <img
+                          src={`${API_URL}${item.image}`}
+                          alt={item.name}
+                          style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "12px" }}
+                        />
+                      ) : (
+                        "🌱"
+                      )}
+                    </div>
 
-                <span className="active-label">
-                  Active
-                </span>
-              </div>
+                    <div className="listing-info">
+                      <strong>{item.name}</strong>
+                      <p>₹{item.price}/{item.quantityUnit || "kg"}</p>
+                      <small>{item.availableQuantity ?? item.quantity} {item.quantityUnit || "kg"} available</small>
+                    </div>
+
+                    <span className="active-label">
+                      Active
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="listing-card">
+                  <div className="listing-info">
+                    <strong>No products listed yet</strong>
+                    <small>Use Sell to add your first product.</small>
+                  </div>
+                </div>
+              )}
             </div>
 
             <BottomNav page={page} setPage={setPage} />
@@ -597,6 +790,7 @@ function App() {
                       const file = e.target.files?.[0];
 
                       if (file) {
+                        setProductFile(file);
                         setProductImage(
                           URL.createObjectURL(file)
                         );
@@ -791,7 +985,25 @@ function App() {
               </div>
 
               <div className="orders-list">
-                {demoOrders.map((order) => (
+                {loadingOrders ? (
+                  <div className="order-card">
+                    <strong>Loading orders...</strong>
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div className="order-card">
+                    <strong>No orders found</strong>
+                    <p>Your buyer orders will appear here.</p>
+                  </div>
+                ) : (
+                  orders
+                    .filter((order) => {
+                      if (orderTab === "Received") return true;
+                      if (orderTab === "Processing") return order.status === "Processing";
+                      if (orderTab === "Completed") return order.status === "Completed";
+                      if (orderTab === "Cancelled") return order.status === "Cancelled";
+                      return true;
+                    })
+                    .map((order) => (
                   <div className="order-card" key={order.id}>
                     <div className="order-card-top">
                       <div className="product-order-info">
@@ -801,13 +1013,13 @@ function App() {
 
                         <div>
                           <small>{order.id}</small>
-                          <h3>{order.product}</h3>
-                          <p>{order.amount}</p>
+                          <h3>{order.productName}</h3>
+                          <p>₹{order.totalPrice} · {order.quantity} unit(s)</p>
                         </div>
                       </div>
 
                       <div className="order-meta">
-                        <small>{order.date}</small>
+                        <small>{new Date(order.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</small>
 
                         <span
                           className={
@@ -829,10 +1041,10 @@ function App() {
 
                         <div>
                           <strong>
-                            {order.customer}
+                            {order.buyerName || "Buyer"}
                           </strong>
                           <small>
-                            {order.location}
+                            {order.buyerLocation || "Location not provided"}
                           </small>
                         </div>
                       </div>
@@ -840,7 +1052,7 @@ function App() {
                       <button
                         onClick={() =>
                           alert(
-                            `${order.id}\n${order.product}\n${order.customer}\n${order.amount}`
+                            `${order.id}\n${order.productName}\n${order.buyerName || "Buyer"}\n₹${order.totalPrice}\nStatus: ${order.status}`
                           )
                         }
                       >
@@ -848,7 +1060,8 @@ function App() {
                       </button>
                     </div>
                   </div>
-                ))}
+                    ))
+                )}
               </div>
             </div>
 
@@ -881,12 +1094,12 @@ function App() {
 
                 <div className="profile-row">
                   <span>Name</span>
-                  <strong>Ramesh Kumar</strong>
+                  <strong>{currentUser?.name || "FasalBridge User"}</strong>
                 </div>
 
                 <div className="profile-row">
                   <span>Phone Number</span>
-                  <strong>+91 98765 43210</strong>
+                  <strong>{currentUser?.phone || "Not provided"}</strong>
                 </div>
 
                 <div className="profile-row">
